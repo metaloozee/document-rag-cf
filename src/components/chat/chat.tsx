@@ -4,38 +4,63 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import React from "react";
 
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import {
+  Conversation,
+  ConversationContent,
+} from "@/components/ai-elements/conversation";
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from "@/components/ai-elements/message";
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputProvider,
+  PromptInputSubmit,
+  PromptInputTextarea,
+} from "@/components/ai-elements/prompt-input";
 
 export const Chat = () => {
-  const [text, setText] = React.useState("");
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage({ text });
-    setText("");
+  const handleSubmit = (message: { text: string }) => {
+    sendMessage(message);
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      {messages.map((m) =>
-        m.parts.map((p) =>
-          p.type === "text" ? <div key={m.id + p.text}>{p.text}</div> : null
-        )
-      )}
+    <div className="flex flex-col h-full max-w-3xl mx-auto">
+      <Conversation className="flex-1 overflow-y-auto">
+        <ConversationContent>
+          {messages.map((message) => (
+            <Message key={message.id} from={message.role}>
+              <MessageContent>
+                {message.parts.map((part, i) =>
+                  part.type === "text" ? (
+                    <MessageResponse key={i}>{part.text}</MessageResponse>
+                  ) : null
+                )}
+              </MessageContent>
+            </Message>
+          ))}
+        </ConversationContent>
+      </Conversation>
 
-      <div className="flex gap-2">
-        <Input value={text} onChange={(e) => setText(e.target.value)} />
-
-        <Button type="submit" disabled={status !== "ready"}>
-          Send
-        </Button>
-      </div>
-    </form>
+      <PromptInputProvider>
+        <PromptInput onSubmit={handleSubmit} className="p-4">
+          <PromptInputBody>
+            <PromptInputTextarea placeholder="Type a message..." />
+          </PromptInputBody>
+          <PromptInputFooter>
+            <PromptInputSubmit status={status} />
+          </PromptInputFooter>
+        </PromptInput>
+      </PromptInputProvider>
+    </div>
   );
 };
