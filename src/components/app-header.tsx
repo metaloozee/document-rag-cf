@@ -36,7 +36,7 @@ export const AppHeader = ({ project }: { project: AppHeaderProject }) => {
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
 
   return (
-    <header className="flex py-2 shrink-0 items-center gap-2 border-b px-3 sm:gap-4 sm:px-4">
+    <header className="sticky z-2 bg-background w-full flex py-2 shrink-0 items-center gap-2 border-b px-3 sm:gap-4 sm:px-4">
       <SidebarTrigger />
       <Separator
         className="my-auto hidden size-4 sm:block"

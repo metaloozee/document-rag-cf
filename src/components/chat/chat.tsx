@@ -87,26 +87,49 @@ const ChatMessageRow = ({ message }: ChatMessageRowProps) => {
   );
 };
 
-export const Chat = () => {
+export const Chat = ({
+  id,
+  projectId,
+  projectSlug,
+}: {
+  id: string;
+  projectId: string;
+  projectSlug: string;
+}) => {
   const { messages, sendMessage, status, stop, regenerate, error, clearError } =
     useChat({
+      experimental_throttle: 100,
+      id,
+      onError: (e) => {
+        toast.error("Something went wrong", { description: e.message });
+      },
       transport: new DefaultChatTransport({
         api: "/api/chat",
+        body: {
+          projectId,
+          projectSlug,
+        },
       }),
     });
 
   const handleSubmit = (message: { text: string }) => {
+    // if (messages.length === 0) {
+    //   window.history.replaceState(
+    //     {},
+    //     "",
+    //     `/projects/${projectSlug}/chats/${id}`
+    //   );
+    // }
+
     sendMessage(message);
   };
 
   const showThinking =
     status === "submitted" && messages.at(-1)?.role !== "assistant";
 
-  const isComposerBusy = status === "submitted" || status === "streaming";
-
   return (
     <div className="flex min-h-0 flex-1 flex-col relative">
-      <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-4 pb-2 lg:max-w-5xl lg:px-6">
+      <div className="mx-auto flex min-h-0 w-full flex-1 flex-col pb-2">
         {error ? (
           <Alert className="mt-4 shrink-0" role="alert" variant="destructive">
             <AlertCircle aria-hidden className="size-4" />
@@ -169,13 +192,12 @@ export const Chat = () => {
           </Conversation>
         </div>
 
-        <div className="sticky bottom-0 z-10 shrink-0 pt-3 pb-4">
+        <div className="sticky bottom-0 z-1 bg-background pb-2 max-w-4xl mx-auto w-full">
           <PromptInputProvider>
             <PromptInput globalDrop multiple onSubmit={handleSubmit}>
               <PromptInputBody>
                 <PromptInputTextarea
                   autoComplete="off"
-                  disabled={isComposerBusy}
                   name="chat-message"
                   placeholder="Ask about your documents…"
                   spellCheck
