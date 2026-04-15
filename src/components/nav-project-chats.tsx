@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquareTextIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,8 +29,11 @@ import {
 import { Spinner } from "./ui/spinner";
 
 export const NavProjectChats = ({ projectSlug }: { projectSlug: string }) => {
+  const pathname = usePathname();
+  const router = useRouter();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const projectHomePath = `/projects/${encodeURIComponent(projectSlug)}`;
 
   const projectQueryOptions = useMemo(
     () => trpc.project.getProjectBySlug.queryOptions({ slug: projectSlug }),
@@ -66,15 +70,26 @@ export const NavProjectChats = ({ projectSlug }: { projectSlug: string }) => {
       onError: (error) => {
         toast.error(error.message || "Unable to delete conversation");
       },
-      onSuccess: async () => {
-        if (projectChatsQueryOptions) {
-          await queryClient.invalidateQueries({
-            queryKey: projectChatsQueryOptions.queryKey,
+      onSuccess: async (_data, variables) => {
+        const listQueryOptions =
+          trpc.chat.listProjectConversations.queryOptions({
+            projectId: variables.projectId,
           });
-        }
+        const deletedConversationPath = `${projectHomePath}/chats/${encodeURIComponent(
+          variables.conversationId
+        )}`;
+        const deletedActiveConversation = pathname === deletedConversationPath;
+
+        await queryClient.invalidateQueries({
+          queryKey: listQueryOptions.queryKey,
+        });
 
         setDeleteCandidate(null);
         toast.success("Conversation deleted");
+
+        if (deletedActiveConversation) {
+          router.replace(projectHomePath);
+        }
       },
     })
   );

@@ -334,4 +334,38 @@ export const chatRouter = createTRPCRouter({
 
       return { ok: true as const, savedCount: messages.length };
     }),
+
+  updateConversationTitle: protectedProcedure
+    .input(
+      z.object({
+        conversationId: chatIdSchema,
+        projectId: projectIdSchema,
+        title: z.string().trim().min(1).max(200),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertOwnedProject({ ctx, projectId: input.projectId });
+      const ownerUserId = ctx.session.user.id;
+
+      const [updated] = await ctx.db
+        .update(chatConversation)
+        .set({ title: input.title })
+        .where(
+          and(
+            eq(chatConversation.id, input.conversationId),
+            eq(chatConversation.projectId, input.projectId),
+            eq(chatConversation.ownerUserId, ownerUserId)
+          )
+        )
+        .returning();
+
+      if (!updated) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Conversation not found",
+        });
+      }
+
+      return updated;
+    }),
 });

@@ -162,12 +162,16 @@ export const NavProjectDocuments = ({
       onError: (error) => {
         toast.error(error.message || "Unable to delete document");
       },
-      onSuccess: async () => {
-        if (projectDocumentsQueryOptions) {
-          await queryClient.invalidateQueries({
-            queryKey: projectDocumentsQueryOptions.queryKey,
-          });
-        }
+      onSuccess: async (_data, variables) => {
+        const listQueryOptions = trpc.project.listProjectDocuments.queryOptions(
+          {
+            projectId: variables.id,
+          }
+        );
+
+        await queryClient.invalidateQueries({
+          queryKey: listQueryOptions.queryKey,
+        });
 
         setDeleteCandidate(null);
         toast.success("Document deleted");

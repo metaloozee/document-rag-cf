@@ -1,10 +1,12 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { AlertCircle, CopyIcon, MessageSquareIcon } from "lucide-react";
-import { useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 
 import {
@@ -32,6 +34,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useTRPC } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
 import { Kbd, KbdGroup } from "../ui/kbd";
@@ -98,6 +101,58 @@ export const Chat = ({
   projectId: string;
   projectSlug: string;
 }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const trpc = useTRPC();
+
+  const listProjectConversationsQueryOptions = useMemo(
+    () =>
+      trpc.chat.listProjectConversations.queryOptions({
+        projectId,
+      }),
+    [projectId, trpc]
+  );
+
+  const projectHomePath = `/projects/${projectSlug}`;
+
+  const handleChatFinish = useCallback(
+    ({
+      isAbort,
+      isDisconnect,
+      isError,
+    }: {
+      isAbort: boolean;
+      isDisconnect: boolean;
+      isError: boolean;
+    }) => {
+      if (!isError && !isAbort) {
+        void queryClient.invalidateQueries({
+          queryKey: listProjectConversationsQueryOptions.queryKey,
+        });
+      }
+
+      if (isError || isAbort || isDisconnect) {
+        return;
+      }
+
+      if (pathname === projectHomePath) {
+        router.replace(
+          `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(id)}`
+        );
+      }
+    },
+    [
+      id,
+      listProjectConversationsQueryOptions,
+      pathname,
+      projectHomePath,
+      projectSlug,
+      queryClient,
+      router,
+    ]
+  );
+
   const { messages, sendMessage, status, stop, regenerate, error, clearError } =
     useChat({
       experimental_throttle: 100,
@@ -105,6 +160,9 @@ export const Chat = ({
       messages: initialMessages ?? [],
       onError: (e) => {
         toast.error("Something went wrong", { description: e.message });
+      },
+      onFinish: ({ isAbort, isDisconnect, isError }) => {
+        handleChatFinish({ isAbort, isDisconnect, isError });
       },
       transport: new DefaultChatTransport({
         api: "/api/chat",
@@ -116,14 +174,6 @@ export const Chat = ({
     });
 
   const handleSubmit = (message: { text: string }) => {
-    if (messages.length === 0) {
-      window.history.replaceState(
-        {},
-        "",
-        `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(id)}`
-      );
-    }
-
     sendMessage(message);
   };
 
