@@ -31,12 +31,20 @@ interface AppHeaderProject {
   slug: string;
 }
 
-export const AppHeader = ({ project }: { project: AppHeaderProject }) => {
+export const AppHeader = ({
+  chatTitle,
+  project,
+}: {
+  chatTitle?: string | null;
+  project: AppHeaderProject;
+}) => {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+  const normalizedChatTitle = chatTitle?.trim() ?? "";
+  const hasChatTitle = normalizedChatTitle.length > 0;
 
   return (
-    <header className="flex py-2 shrink-0 items-center gap-2 border-b px-3 sm:gap-4 sm:px-4">
+    <header className="sticky z-2 bg-background w-full flex py-2 shrink-0 items-center gap-2 border-b px-3 sm:gap-4 sm:px-4">
       <SidebarTrigger />
       <Separator
         className="my-auto hidden size-4 sm:block"
@@ -51,13 +59,31 @@ export const AppHeader = ({ project }: { project: AppHeaderProject }) => {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{project.name}</BreadcrumbPage>
+            {hasChatTitle ? (
+              <BreadcrumbLink asChild>
+                <Link href={`/projects/${project.slug}`}>{project.name}</Link>
+              </BreadcrumbLink>
+            ) : (
+              <BreadcrumbPage>{project.name}</BreadcrumbPage>
+            )}
           </BreadcrumbItem>
+          {hasChatTitle ? (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem className="min-w-0">
+                <BreadcrumbPage className="truncate">
+                  {normalizedChatTitle}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          ) : null}
         </BreadcrumbList>
 
         <BreadcrumbList className="sm:hidden">
           <BreadcrumbItem className="min-w-0">
-            <BreadcrumbPage className="truncate">{project.name}</BreadcrumbPage>
+            <BreadcrumbPage className="truncate">
+              {hasChatTitle ? normalizedChatTitle : project.name}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>

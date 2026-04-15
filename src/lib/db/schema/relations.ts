@@ -1,6 +1,8 @@
 import { relations } from "drizzle-orm";
 
 import { account, session, user } from "./auth";
+import { chatConversation } from "./chat-conversation";
+import { chatMessage } from "./chat-message";
 import { documentChunk } from "./document-chunk";
 import { documentEmbedding } from "./document-embedding";
 import { project } from "./project";
@@ -9,6 +11,8 @@ import { userSettings } from "./user-settings";
 
 export const userRelations = relations(user, ({ many, one }) => ({
   accounts: many(account),
+  chatConversations: many(chatConversation),
+  chatMessages: many(chatMessage),
   documentChunks: many(documentChunk),
   documentEmbeddings: many(documentEmbedding),
   projectDocuments: many(projectDocument),
@@ -32,12 +36,44 @@ export const accountRelations = relations(account, ({ one }) => ({
 }));
 
 export const projectRelations = relations(project, ({ many, one }) => ({
+  chatConversations: many(chatConversation),
+  chatMessages: many(chatMessage),
   documentChunks: many(documentChunk),
   documentEmbeddings: many(documentEmbedding),
   documents: many(projectDocument),
   owner: one(user, {
     fields: [project.ownerUserId],
     references: [user.id],
+  }),
+}));
+
+export const chatConversationRelations = relations(
+  chatConversation,
+  ({ many, one }) => ({
+    messages: many(chatMessage),
+    owner: one(user, {
+      fields: [chatConversation.ownerUserId],
+      references: [user.id],
+    }),
+    project: one(project, {
+      fields: [chatConversation.projectId],
+      references: [project.id],
+    }),
+  })
+);
+
+export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
+  conversation: one(chatConversation, {
+    fields: [chatMessage.conversationId],
+    references: [chatConversation.id],
+  }),
+  owner: one(user, {
+    fields: [chatMessage.ownerUserId],
+    references: [user.id],
+  }),
+  project: one(project, {
+    fields: [chatMessage.projectId],
+    references: [project.id],
   }),
 }));
 

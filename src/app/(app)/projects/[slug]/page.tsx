@@ -1,15 +1,43 @@
-export default function ProjectPage() {
+import { generateId } from "ai";
+import { headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+
+import { AppHeader } from "@/components/app-header";
+import { Chat } from "@/components/chat/chat";
+import { auth } from "@/lib/auth";
+import { caller } from "@/lib/trpc/server";
+
+export default async function ProjectPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  const { slug } = await params;
+  const project = await caller.project.getProjectBySlug({ slug });
+
+  if (!project) {
+    notFound();
+  }
+
+  const chatId = generateId();
+
+  const projectSummary = {
+    description: project.description,
+    id: project.id,
+    name: project.name,
+    slug: project.slug,
+  };
+
   return (
-    <div className="flex w-full flex-1 flex-col p-6">
-      <section className="flex flex-1 flex-col items-center justify-center gap-2 border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
-        <h1 className="font-heading text-lg font-medium">
-          Chat Workspace Soon
-        </h1>
-        <p className="max-w-sm text-xs text-muted-foreground">
-          Use the project controls above to switch spaces, update settings, or
-          prepare document uploads.
-        </p>
-      </section>
+    <div className="flex h-dvh w-full flex-col overflow-hidden">
+      <AppHeader project={projectSummary} />
+      <Chat id={chatId} projectId={project.id} projectSlug={project.slug} />
     </div>
   );
 }

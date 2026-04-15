@@ -39,3 +39,6 @@ export const documentEmbedding = pgTable(
       }),
   ]
 );
+
+export type DocumentEmbedding = typeof documentEmbedding.$inferSelect;
+export type NewDocumentEmbedding = typeof documentEmbedding.$inferInsert;

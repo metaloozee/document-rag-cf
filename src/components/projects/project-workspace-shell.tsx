@@ -1,10 +1,8 @@
 import "server-only";
-import { TRPCError } from "@trpc/server";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
@@ -23,14 +21,9 @@ export const ProjectWorkspaceShell = async ({
     redirect("/login");
   }
 
-  let projectRecord;
-  try {
-    projectRecord = await caller.project.getProjectBySlug({ slug });
-  } catch (error) {
-    if (error instanceof TRPCError && error.code === "NOT_FOUND") {
-      notFound();
-    }
-    throw error;
+  const projectRecord = await caller.project.getProjectBySlug({ slug });
+  if (!projectRecord) {
+    notFound();
   }
 
   const projectSummary = {
@@ -43,10 +36,7 @@ export const ProjectWorkspaceShell = async ({
   return (
     <SidebarProvider>
       <AppSidebar project={projectSummary} />
-      <SidebarInset className="flex flex-col">
-        <AppHeader project={projectSummary} />
-        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-      </SidebarInset>
+      <SidebarInset className="flex flex-col">{children}</SidebarInset>
     </SidebarProvider>
   );
 };

@@ -3,6 +3,8 @@
 // oxlint-disable unicorn/require-module-specifiers
 
 export * from "./auth";
+export * from "./chat-conversation";
+export * from "./chat-message";
 export * from "./document-chunk";
 export * from "./document-embedding";
 export * from "./project";
