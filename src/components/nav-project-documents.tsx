@@ -319,7 +319,7 @@ export const NavProjectDocuments = ({
                   rel="noopener"
                 >
                   <Icon aria-hidden="true" />
-                  <span>{document.originalFilename}</span>
+                  <span className="truncate">{document.originalFilename}</span>
                 </Link>
               </SidebarMenuSubButton>
             );

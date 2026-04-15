@@ -182,10 +182,9 @@ export const Chat = ({
                   {showThinking ? (
                     <div
                       aria-live="polite"
-                      className="flex items-center gap-2 text-muted-foreground text-sm"
+                      className="flex items-center mx-auto gap-2 text-muted-foreground text-sm"
                     >
                       <Spinner className="size-4" />
-                      <span>Thinking…</span>
                     </div>
                   ) : null}
                 </>

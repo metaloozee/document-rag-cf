@@ -25,18 +25,20 @@ export default async function ChatPage({
     notFound();
   }
 
-  try {
-    await caller.chat.getConversationById({
-      conversationId: chatId,
-      projectId: project.id,
-    });
-  } catch (error) {
-    if (error instanceof TRPCError && error.code === "NOT_FOUND") {
-      notFound();
-    }
+  const conversation = await (async () => {
+    try {
+      return await caller.chat.getConversationById({
+        conversationId: chatId,
+        projectId: project.id,
+      });
+    } catch (error) {
+      if (error instanceof TRPCError && error.code === "NOT_FOUND") {
+        notFound();
+      }
 
-    throw error;
-  }
+      throw error;
+    }
+  })();
 
   const initialMessages = await caller.chat.getConversationMessages({
     conversationId: chatId,
@@ -52,7 +54,7 @@ export default async function ChatPage({
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">
-      <AppHeader project={projectSummary} />
+      <AppHeader chatTitle={conversation.title} project={projectSummary} />
       <Chat
         id={chatId}
         initialMessages={initialMessages}
