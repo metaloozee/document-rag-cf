@@ -148,7 +148,7 @@ export const NavProjectChats = ({ projectSlug }: { projectSlug: string }) => {
                 disabled={deleteConversationMutation.isPending}
                 onClick={(event) => {
                   if (event.shiftKey) {
-                    void deleteConversationMutation.mutateAsync({
+                    deleteConversationMutation.mutate({
                       conversationId: chat.id,
                       projectId: projectQuery.data.id,
                     });
@@ -200,7 +200,7 @@ export const NavProjectChats = ({ projectSlug }: { projectSlug: string }) => {
                   return;
                 }
 
-                void deleteConversationMutation.mutateAsync({
+                deleteConversationMutation.mutate({
                   conversationId: conversationId,
                   projectId: projectQuery.data.id,
                 });

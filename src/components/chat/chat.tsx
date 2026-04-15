@@ -120,7 +120,7 @@ export const Chat = ({
       window.history.replaceState(
         {},
         "",
-        `/projects/${projectSlug}/chats/${id}`
+        `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(id)}`
       );
     }
 
@@ -194,7 +194,7 @@ export const Chat = ({
           </Conversation>
         </div>
 
-        <div className="sticky bottom-0 z-1 bg-background pb-2 max-w-4xl mx-auto w-full">
+        <div className="sticky bottom-0 z-10 bg-background pb-2 max-w-4xl mx-auto w-full">
           <PromptInputProvider>
             <PromptInput globalDrop multiple onSubmit={handleSubmit}>
               <PromptInputBody>
