@@ -1,15 +1,25 @@
 import { mistral } from "@ai-sdk/mistral";
-import { convertToModelMessages, streamText, validateUIMessages } from "ai";
+import type { UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  createIdGenerator,
+  streamText,
+  TypeValidationError,
+  validateUIMessages,
+} from "ai";
 import { headers } from "next/headers";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth";
+import type { ChatConversation } from "@/lib/db/schema";
+import { getOwnedProject } from "@/lib/documents/ingestion";
+import { caller } from "@/lib/trpc/server";
 
 const requestBodySchema = z.object({
   id: z.string().length(16),
   messages: z.unknown(),
-  projectId: z.string().uuid(),
-  projectSlug: z.string(),
+  projectId: z.string().min(1),
+  projectSlug: z.string().trim().min(1),
 });
 
 export const POST = async (req: Request) => {
@@ -19,18 +29,41 @@ export const POST = async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  const ownerUserId = session.user.id;
   const body = requestBodySchema.parse(await req.json());
-  const messages = await validateUIMessages({ messages: body.messages });
 
-  console.log(`${body.projectSlug}:${body.id}`);
-  console.log(
-    "messages",
-    messages.map((m) => m.parts.map((p) => p))
-  );
-  console.log(
-    "current message",
-    messages.at(-1)?.parts.map((p) => p)
-  );
+  const project = await getOwnedProject({
+    ownerUserId,
+    projectId: body.projectId,
+  });
+
+  if (!project || project.slug !== body.projectSlug) {
+    return new Response("Project not found", { status: 404 });
+  }
+
+  let messages: UIMessage[];
+
+  try {
+    messages = await validateUIMessages({ messages: body.messages });
+  } catch (error) {
+    if (error instanceof TypeValidationError) {
+      return new Response("Failed to validate messages", { status: 400 });
+    }
+
+    throw error;
+  }
+
+  const conversation: ChatConversation =
+    messages.length === 1
+      ? await caller.chat.createConversation({
+          id: body.id,
+          projectId: body.projectId,
+          title: "Undefined Conversation",
+        })
+      : await caller.chat.getConversationById({
+          conversationId: body.id,
+          projectId: body.projectId,
+        });
 
   const result = streamText({
     messages: await convertToModelMessages(messages),
@@ -39,5 +72,25 @@ export const POST = async (req: Request) => {
       "You are a helpful assistant that can answer questions and help with tasks.",
   });
 
-  return result.toUIMessageStreamResponse();
+  result.consumeStream();
+
+  return result.toUIMessageStreamResponse({
+    generateMessageId: createIdGenerator({
+      prefix: "msg",
+      size: 16,
+    }),
+    onFinish: async ({ messages: finishedMessages }) => {
+      try {
+        await caller.chat.syncConversationMessages({
+          conversationId: conversation.id,
+          messages: finishedMessages,
+          projectId: conversation.projectId,
+        });
+      } catch {
+        // Response already streamed; log for observability.
+        console.error("Failed to persist chat messages after stream finished");
+      }
+    },
+    originalMessages: messages,
+  });
 };

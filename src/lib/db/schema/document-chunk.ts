@@ -49,3 +49,6 @@ export const documentChunk = pgTable(
     ),
   ]
 );
+
+export type DocumentChunk = typeof documentChunk.$inferSelect;
+export type NewDocumentChunk = typeof documentChunk.$inferInsert;

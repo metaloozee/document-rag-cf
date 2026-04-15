@@ -37,3 +37,6 @@ export const chatMessage = pgTable(
     ),
   ]
 );
+
+export type ChatMessage = typeof chatMessage.$inferSelect;
+export type NewChatMessage = typeof chatMessage.$inferInsert;

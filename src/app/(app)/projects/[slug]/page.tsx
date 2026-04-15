@@ -25,14 +25,14 @@ export default async function ProjectPage({
     notFound();
   }
 
+  const chatId = generateId();
+
   const projectSummary = {
     description: project.description,
     id: project.id,
     name: project.name,
     slug: project.slug,
   };
-
-  const chatId = await generateId();
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">

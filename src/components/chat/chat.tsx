@@ -89,10 +89,12 @@ const ChatMessageRow = ({ message }: ChatMessageRowProps) => {
 
 export const Chat = ({
   id,
+  initialMessages,
   projectId,
   projectSlug,
 }: {
   id: string;
+  initialMessages?: UIMessage[];
   projectId: string;
   projectSlug: string;
 }) => {
@@ -100,6 +102,7 @@ export const Chat = ({
     useChat({
       experimental_throttle: 100,
       id,
+      messages: initialMessages ?? [],
       onError: (e) => {
         toast.error("Something went wrong", { description: e.message });
       },
@@ -113,13 +116,13 @@ export const Chat = ({
     });
 
   const handleSubmit = (message: { text: string }) => {
-    // if (messages.length === 0) {
-    //   window.history.replaceState(
-    //     {},
-    //     "",
-    //     `/projects/${projectSlug}/chats/${id}`
-    //   );
-    // }
+    if (messages.length === 0) {
+      window.history.replaceState(
+        {},
+        "",
+        `/projects/${projectSlug}/chats/${id}`
+      );
+    }
 
     sendMessage(message);
   };

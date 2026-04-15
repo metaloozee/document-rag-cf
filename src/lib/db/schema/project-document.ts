@@ -56,3 +56,6 @@ export const projectDocument = pgTable(
     uniqueIndex("project_document_object_key_unique").on(table.objectKey),
   ]
 );
+
+export type ProjectDocument = typeof projectDocument.$inferSelect;
+export type NewProjectDocument = typeof projectDocument.$inferInsert;

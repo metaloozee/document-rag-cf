@@ -31,3 +31,6 @@ export const project = pgTable(
     index("project_owner_updated_idx").on(table.ownerUserId, table.updatedAt),
   ]
 );
+
+export type Project = typeof project.$inferSelect;
+export type NewProject = typeof project.$inferInsert;

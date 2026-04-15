@@ -28,3 +28,6 @@ export const chatConversation = pgTable(
     ),
   ]
 );
+
+export type ChatConversation = typeof chatConversation.$inferSelect;
+export type NewChatConversation = typeof chatConversation.$inferInsert;
