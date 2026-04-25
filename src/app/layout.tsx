@@ -4,6 +4,7 @@ import { Syne } from "next/font/google";
 import Providers from "@/components/providers";
 
 import "./globals.css";
+import "streamdown/styles.css";
 
 const syne = Syne({
   subsets: ["latin"],
