@@ -245,7 +245,7 @@ export const POST = async (req: Request) => {
   }
 
   const { output: queriesToEmbed } = await generateText({
-    model: mistral("mistral-large-latest"),
+    model: mistral("mistral-small-latest"),
     output: Output.array({
       description: "A list of queries to embed for semantic search.",
       element: z.string().trim().min(1).max(300),
@@ -309,7 +309,7 @@ export const POST = async (req: Request) => {
 
   const result = streamText({
     messages: await convertToModelMessages(messages),
-    model: mistral("magistral-medium-latest"),
+    model: mistral("mistral-large-latest"),
     system: `
       You are a helpful assistant named OpenBookLM that can answer questions and help with tasks.
       Use the retrieved document context below to answer the user's question. If the context does not contain the answer, say that the uploaded documents do not contain enough information and then provide any generally useful guidance separately.
