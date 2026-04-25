@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { AlertCircle, CopyIcon, MessageSquareIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 
 import {
@@ -42,6 +42,12 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "../ai-elements/reasoning";
+// import {
+//   Source,
+//   Sources,
+//   SourcesContent,
+//   SourcesTrigger,
+// } from "../ai-elements/sources";
 import { Kbd, KbdGroup } from "../ui/kbd";
 
 const getMessagePlainText = (message: UIMessage): string =>
@@ -49,8 +55,6 @@ const getMessagePlainText = (message: UIMessage): string =>
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("\n");
-
-const TITLE_REFRESH_SETTLE_DELAY_MS = 2500;
 
 interface ChatMessageRowProps {
   message: UIMessage;
@@ -112,13 +116,11 @@ const ChatMessageRow = ({ message }: ChatMessageRowProps) => {
 
 export const Chat = ({
   id,
-  autoStartStream = false,
   initialMessages,
   projectId,
   projectSlug,
 }: {
   id: string;
-  autoStartStream?: boolean;
   initialMessages?: UIMessage[];
   projectId: string;
   projectSlug: string;
@@ -127,8 +129,6 @@ export const Chat = ({
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const trpc = useTRPC();
-  const shouldRefreshTitleRef = useRef(autoStartStream);
-  const titleRefreshTimeoutRef = useRef<number | null>(null);
 
   const listProjectConversationsQueryOptions = useMemo(
     () =>
@@ -137,6 +137,8 @@ export const Chat = ({
       }),
     [projectId, trpc]
   );
+
+  const projectHomePath = `/projects/${projectSlug}`;
 
   const handleChatFinish = useCallback(
     ({
@@ -148,26 +150,31 @@ export const Chat = ({
       isDisconnect: boolean;
       isError: boolean;
     }) => {
+      if (!isError && !isAbort) {
+        void queryClient.invalidateQueries({
+          queryKey: listProjectConversationsQueryOptions.queryKey,
+        });
+      }
+
       if (isError || isAbort || isDisconnect) {
         return;
       }
 
-      void queryClient.invalidateQueries({
-        queryKey: listProjectConversationsQueryOptions.queryKey,
-      });
-
-      if (pathname.includes("/chats/")) {
-        router.refresh();
-
-        if (shouldRefreshTitleRef.current) {
-          shouldRefreshTitleRef.current = false;
-          titleRefreshTimeoutRef.current = window.setTimeout(() => {
-            router.refresh();
-          }, TITLE_REFRESH_SETTLE_DELAY_MS);
-        }
+      if (pathname === projectHomePath) {
+        router.replace(
+          `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(id)}`
+        );
       }
     },
-    [listProjectConversationsQueryOptions, pathname, queryClient, router]
+    [
+      id,
+      listProjectConversationsQueryOptions,
+      pathname,
+      projectHomePath,
+      projectSlug,
+      queryClient,
+      router,
+    ]
   );
 
   const { messages, sendMessage, status, stop, regenerate, error, clearError } =
@@ -189,36 +196,6 @@ export const Chat = ({
         },
       }),
     });
-
-  const didAutoStartStream = useRef(false);
-
-  useEffect(() => {
-    if (!autoStartStream || didAutoStartStream.current) {
-      return;
-    }
-
-    const init = initialMessages ?? [];
-    if (init.length !== 1 || init[0].role !== "user") {
-      return;
-    }
-
-    didAutoStartStream.current = true;
-    shouldRefreshTitleRef.current = true;
-    void sendMessage();
-    router.replace(
-      `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(id)}`,
-      { scroll: false }
-    );
-  }, [autoStartStream, id, initialMessages, projectSlug, router, sendMessage]);
-
-  useEffect(
-    () => () => {
-      if (titleRefreshTimeoutRef.current !== null) {
-        window.clearTimeout(titleRefreshTimeoutRef.current);
-      }
-    },
-    []
-  );
 
   const handleSubmit = (message: { text: string }) => {
     sendMessage(message);

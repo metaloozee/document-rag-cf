@@ -1,8 +1,9 @@
+import { generateId } from "ai";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { AppHeader } from "@/components/app-header";
-import { ProjectNewChatComposer } from "@/components/chat/project-new-chat-composer";
+import { Chat } from "@/components/chat/chat";
 import { auth } from "@/lib/auth";
 import { caller } from "@/lib/trpc/server";
 
@@ -11,22 +12,20 @@ export default async function ProjectPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const [session, { slug }] = await Promise.all([
-    headers().then((requestHeaders) =>
-      auth.api.getSession({ headers: requestHeaders })
-    ),
-    params,
-  ]);
+  const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user) {
     redirect("/login");
   }
 
+  const { slug } = await params;
   const project = await caller.project.getProjectBySlug({ slug });
 
   if (!project) {
     notFound();
   }
+
+  const chatId = generateId();
 
   const projectSummary = {
     description: project.description,
@@ -38,10 +37,7 @@ export default async function ProjectPage({
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">
       <AppHeader project={projectSummary} />
-      <ProjectNewChatComposer
-        projectId={project.id}
-        projectSlug={project.slug}
-      />
+      <Chat id={chatId} projectId={project.id} projectSlug={project.slug} />
     </div>
   );
 }

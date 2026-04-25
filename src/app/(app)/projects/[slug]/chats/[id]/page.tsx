@@ -9,33 +9,25 @@ import { caller } from "@/lib/trpc/server";
 
 export default async function ChatPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string; slug: string }>;
-  searchParams: Promise<{ stream?: string }>;
 }) {
-  const [session, { id: chatId, slug: projectSlug }, { stream: streamParam }] =
-    await Promise.all([
-      headers().then((requestHeaders) =>
-        auth.api.getSession({ headers: requestHeaders })
-      ),
-      params,
-      searchParams,
-    ]);
+  const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session?.user) {
     redirect("/login");
   }
 
+  const { id: chatId, slug: projectSlug } = await params;
   const project = await caller.project.getProjectBySlug({ slug: projectSlug });
 
   if (!project) {
     notFound();
   }
 
-  const { conversation, messages: initialMessages } = await (async () => {
+  const conversation = await (async () => {
     try {
-      return await caller.chat.getConversationThread({
+      return await caller.chat.getConversationById({
         conversationId: chatId,
         projectId: project.id,
       });
@@ -48,10 +40,10 @@ export default async function ChatPage({
     }
   })();
 
-  const shouldAutoStartStream =
-    streamParam === "1" &&
-    initialMessages.length === 1 &&
-    initialMessages[0]?.role === "user";
+  const initialMessages = await caller.chat.getConversationMessages({
+    conversationId: chatId,
+    projectId: project.id,
+  });
 
   const projectSummary = {
     description: project.description,
@@ -65,7 +57,6 @@ export default async function ChatPage({
       <AppHeader chatTitle={conversation.title} project={projectSummary} />
       <Chat
         id={chatId}
-        autoStartStream={shouldAutoStartStream}
         initialMessages={initialMessages}
         projectId={project.id}
         projectSlug={project.slug}

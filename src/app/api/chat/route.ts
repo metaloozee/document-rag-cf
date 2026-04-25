@@ -1,5 +1,4 @@
 import { mistral } from "@ai-sdk/mistral";
-import { TRPCError } from "@trpc/server";
 import type { UIMessage } from "ai";
 import {
   convertToModelMessages,
@@ -29,6 +28,7 @@ import {
 } from "@/lib/documents/ingestion";
 import { caller } from "@/lib/trpc/server";
 
+const FIRST_MESSAGE_TITLE_CONTEXT_MAX = 2000;
 const RETRIEVAL_RESULTS_PER_QUERY = 8;
 const MAX_RETRIEVED_CONTEXTS = 12;
 const MAX_RETRIEVED_CONTEXT_CHARS = 16_000;
@@ -41,6 +41,14 @@ interface RetrievedChatContext {
   originalFilename: string;
   similarity: number;
 }
+
+const conversationTitleSchema = z.object({
+  title: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe("Short plain-text title for this chat thread."),
+});
 
 const getMessagePlainText = (message: UIMessage | undefined): string => {
   if (!message) {
@@ -57,6 +65,12 @@ const getMessagePlainText = (message: UIMessage | undefined): string => {
     .map((part) => part.text)
     .join("\n")
     .trim();
+};
+
+const getFirstUserMessagePlainText = (messageList: UIMessage[]): string => {
+  const firstUser = messageList.find((m) => m.role === "user");
+
+  return getMessagePlainText(firstUser);
 };
 
 const toVectorLiteral = (embedding: number[]): string =>
@@ -126,6 +140,52 @@ const formatRetrievedContexts = (contexts: RetrievedChatContext[]): string => {
   return sections.join("\n\n---\n\n");
 };
 
+const scheduleAiConversationTitle = ({
+  conversationId,
+  firstUserPlainText,
+  projectId,
+}: {
+  conversationId: string;
+  firstUserPlainText: string;
+  projectId: string;
+}) => {
+  if (firstUserPlainText.length === 0) {
+    return;
+  }
+
+  const context = firstUserPlainText.slice(0, FIRST_MESSAGE_TITLE_CONTEXT_MAX);
+
+  void (async () => {
+    try {
+      const { output } = await generateText({
+        model: mistral("mistral-small-latest"),
+        output: Output.object({
+          description: "A concise title for the chat thread.",
+          name: "ConversationTitle",
+          schema: conversationTitleSchema,
+        }),
+        prompt: `The user started the conversation with:\n\n${context}`,
+        system:
+          "Name the chat thread in a few words based on the user's message.",
+        temperature: 0.4,
+      });
+
+      const title = output.title.trim();
+      if (title.length === 0) {
+        return;
+      }
+
+      await caller.chat.updateConversationTitle({
+        conversationId,
+        projectId,
+        title,
+      });
+    } catch (error) {
+      console.error("Failed to generate or save AI conversation title", error);
+    }
+  })();
+};
+
 const requestBodySchema = z.object({
   id: z.string().length(16),
   messages: z.unknown(),
@@ -164,23 +224,28 @@ export const POST = async (req: Request) => {
     throw error;
   }
 
-  let conversation: ChatConversation;
+  const conversation: ChatConversation =
+    messages.length === 1
+      ? await caller.chat.createConversation({
+          id: body.id,
+          projectId: body.projectId,
+          title: "New conversation",
+        })
+      : await caller.chat.getConversationById({
+          conversationId: body.id,
+          projectId: body.projectId,
+        });
 
-  try {
-    conversation = await caller.chat.getConversationById({
-      conversationId: body.id,
+  if (messages.length === 1) {
+    scheduleAiConversationTitle({
+      conversationId: conversation.id,
+      firstUserPlainText: getFirstUserMessagePlainText(messages),
       projectId: body.projectId,
     });
-  } catch (error) {
-    if (error instanceof TRPCError && error.code === "NOT_FOUND") {
-      return new Response("Conversation not found", { status: 404 });
-    }
-
-    throw error;
   }
 
   const { output: queriesToEmbed } = await generateText({
-    model: mistral("mistral-small-latest"),
+    model: mistral("mistral-large-latest"),
     output: Output.array({
       description: "A list of queries to embed for semantic search.",
       element: z.string().trim().min(1).max(300),
@@ -192,9 +257,7 @@ export const POST = async (req: Request) => {
       `,
   });
 
-  if (queriesToEmbed.length === 0) {
-    return new Response("No user message to answer", { status: 400 });
-  }
+  // console.log("queriesToEmbed", queriesToEmbed);
 
   const { embeddings } = await embedMany({
     model: mistral.embeddingModel("mistral-embed"),
@@ -242,9 +305,11 @@ export const POST = async (req: Request) => {
     .slice(0, MAX_RETRIEVED_CONTEXTS);
   const retrievedContextText = formatRetrievedContexts(retrievedContexts);
 
+  // console.log("retrievedContextText", retrievedContextText);
+
   const result = streamText({
     messages: await convertToModelMessages(messages),
-    model: mistral("mistral-large-latest"),
+    model: mistral("magistral-medium-latest"),
     system: `
       You are a helpful assistant named OpenBookLM that can answer questions and help with tasks.
       Use the retrieved document context below to answer the user's question. If the context does not contain the answer, say that the uploaded documents do not contain enough information and then provide any generally useful guidance separately.
@@ -252,7 +317,7 @@ export const POST = async (req: Request) => {
       ## Retrieved document context
       ${retrievedContextText}
 
-      For mathematical expressions, you must always use double dollar signs ($$) to delimit mathematical expressions. Unlike traditional LaTeX, single dollar signs ($) are not used by default to avoid conflicts with currency symbols in regular text.
+      For mathematical expressions, OpenBookLM uses double dollar signs ($$) to delimit mathematical expressions. Unlike traditional LaTeX, single dollar signs ($) are not used by default to avoid conflicts with currency symbols in regular text.
 
       ## Inline Math:
       Wrap inline mathematical expressions with \`$$\`.
