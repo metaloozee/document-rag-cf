@@ -1,9 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import type { UIMessage } from "ai";
-import { validateUIMessages } from "ai";
+import { generateId, validateUIMessages } from "ai";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { fallbackConversationTitle } from "@/lib/chat/fallback-conversation-title";
 import type { db } from "@/lib/db";
 import { chatConversation, chatMessage } from "@/lib/db/schema";
 import { getOwnedProject } from "@/lib/documents/ingestion";
@@ -18,6 +19,7 @@ interface ProtectedChatContext {
 }
 
 const CHAT_ID_LENGTH = 16;
+const MAX_FIRST_MESSAGE_CHARS = 50_000;
 const MAX_SYNCED_MESSAGES = 500;
 
 const chatIdSchema = z.string().length(CHAT_ID_LENGTH);
@@ -244,6 +246,52 @@ export const chatRouter = createTRPCRouter({
           )
         )
         .orderBy(desc(chatConversation.updatedAt));
+    }),
+
+  startNewConversationWithFirstMessage: protectedProcedure
+    .input(
+      z.object({
+        projectId: projectIdSchema,
+        text: z.string().trim().min(1).max(MAX_FIRST_MESSAGE_CHARS),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertOwnedProject({ ctx, projectId: input.projectId });
+      const ownerUserId = ctx.session.user.id;
+      const chatId = generateId();
+      const messageId = generateId();
+      const plainText = input.text.trim();
+      const title = fallbackConversationTitle(plainText);
+
+      const userMessage: UIMessage = {
+        id: messageId,
+        parts: [{ text: plainText, type: "text" }],
+        role: "user",
+      };
+
+      await validateUIMessages({ messages: [userMessage] });
+
+      await ctx.db.transaction(async (tx) => {
+        await tx.insert(chatConversation).values({
+          id: chatId,
+          ownerUserId,
+          projectId: input.projectId,
+          title,
+        });
+
+        await tx.insert(chatMessage).values({
+          conversationId: chatId,
+          id: messageId,
+          metadata: null,
+          ownerUserId,
+          parts: userMessage.parts as unknown[],
+          projectId: input.projectId,
+          role: "user",
+          sequence: 0,
+        });
+      });
+
+      return { chatId } as const;
     }),
 
   syncConversationMessages: protectedProcedure

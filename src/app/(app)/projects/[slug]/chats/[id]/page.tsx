@@ -9,8 +9,10 @@ import { caller } from "@/lib/trpc/server";
 
 export default async function ChatPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; slug: string }>;
+  searchParams: Promise<{ stream?: string }>;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
 
@@ -19,6 +21,7 @@ export default async function ChatPage({
   }
 
   const { id: chatId, slug: projectSlug } = await params;
+  const { stream: streamParam } = await searchParams;
   const project = await caller.project.getProjectBySlug({ slug: projectSlug });
 
   if (!project) {
@@ -45,6 +48,11 @@ export default async function ChatPage({
     projectId: project.id,
   });
 
+  const shouldAutoStartStream =
+    streamParam === "1" &&
+    initialMessages.length === 1 &&
+    initialMessages[0]?.role === "user";
+
   const projectSummary = {
     description: project.description,
     id: project.id,
@@ -57,6 +65,7 @@ export default async function ChatPage({
       <AppHeader chatTitle={conversation.title} project={projectSummary} />
       <Chat
         id={chatId}
+        autoStartStream={shouldAutoStartStream}
         initialMessages={initialMessages}
         projectId={project.id}
         projectSlug={project.slug}

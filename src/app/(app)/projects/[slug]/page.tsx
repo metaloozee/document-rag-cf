@@ -1,9 +1,8 @@
-import { generateId } from "ai";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { AppHeader } from "@/components/app-header";
-import { Chat } from "@/components/chat/chat";
+import { ProjectNewChatComposer } from "@/components/chat/project-new-chat-composer";
 import { auth } from "@/lib/auth";
 import { caller } from "@/lib/trpc/server";
 
@@ -25,8 +24,6 @@ export default async function ProjectPage({
     notFound();
   }
 
-  const chatId = generateId();
-
   const projectSummary = {
     description: project.description,
     id: project.id,
@@ -37,7 +34,10 @@ export default async function ProjectPage({
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">
       <AppHeader project={projectSummary} />
-      <Chat id={chatId} projectId={project.id} projectSlug={project.slug} />
+      <ProjectNewChatComposer
+        projectId={project.id}
+        projectSlug={project.slug}
+      />
     </div>
   );
 }

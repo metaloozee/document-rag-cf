@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { AlertCircle, CopyIcon, MessageSquareIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 import {
@@ -116,11 +116,13 @@ const ChatMessageRow = ({ message }: ChatMessageRowProps) => {
 
 export const Chat = ({
   id,
+  autoStartStream = false,
   initialMessages,
   projectId,
   projectSlug,
 }: {
   id: string;
+  autoStartStream?: boolean;
   initialMessages?: UIMessage[];
   projectId: string;
   projectSlug: string;
@@ -138,8 +140,6 @@ export const Chat = ({
     [projectId, trpc]
   );
 
-  const projectHomePath = `/projects/${projectSlug}`;
-
   const handleChatFinish = useCallback(
     ({
       isAbort,
@@ -150,31 +150,19 @@ export const Chat = ({
       isDisconnect: boolean;
       isError: boolean;
     }) => {
-      if (!isError && !isAbort) {
-        void queryClient.invalidateQueries({
-          queryKey: listProjectConversationsQueryOptions.queryKey,
-        });
-      }
-
       if (isError || isAbort || isDisconnect) {
         return;
       }
 
-      if (pathname === projectHomePath) {
-        router.replace(
-          `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(id)}`
-        );
+      void queryClient.invalidateQueries({
+        queryKey: listProjectConversationsQueryOptions.queryKey,
+      });
+
+      if (pathname.includes("/chats/")) {
+        router.refresh();
       }
     },
-    [
-      id,
-      listProjectConversationsQueryOptions,
-      pathname,
-      projectHomePath,
-      projectSlug,
-      queryClient,
-      router,
-    ]
+    [listProjectConversationsQueryOptions, pathname, queryClient, router]
   );
 
   const { messages, sendMessage, status, stop, regenerate, error, clearError } =
@@ -196,6 +184,26 @@ export const Chat = ({
         },
       }),
     });
+
+  const didAutoStartStream = useRef(false);
+
+  useEffect(() => {
+    if (!autoStartStream || didAutoStartStream.current) {
+      return;
+    }
+
+    const init = initialMessages ?? [];
+    if (init.length !== 1 || init[0].role !== "user") {
+      return;
+    }
+
+    didAutoStartStream.current = true;
+    void sendMessage();
+    router.replace(
+      `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(id)}`,
+      { scroll: false }
+    );
+  }, [autoStartStream, id, initialMessages, projectSlug, router, sendMessage]);
 
   const handleSubmit = (message: { text: string }) => {
     sendMessage(message);
