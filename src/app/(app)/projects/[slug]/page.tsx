@@ -11,13 +11,17 @@ export default async function ProjectPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const [session, { slug }] = await Promise.all([
+    headers().then((requestHeaders) =>
+      auth.api.getSession({ headers: requestHeaders })
+    ),
+    params,
+  ]);
 
   if (!session?.user) {
     redirect("/login");
   }
 
-  const { slug } = await params;
   const project = await caller.project.getProjectBySlug({ slug });
 
   if (!project) {

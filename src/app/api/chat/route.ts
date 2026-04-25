@@ -180,7 +180,7 @@ export const POST = async (req: Request) => {
   }
 
   const { output: queriesToEmbed } = await generateText({
-    model: mistral("mistral-large-latest"),
+    model: mistral("mistral-small-latest"),
     output: Output.array({
       description: "A list of queries to embed for semantic search.",
       element: z.string().trim().min(1).max(300),
@@ -192,7 +192,9 @@ export const POST = async (req: Request) => {
       `,
   });
 
-  // console.log("queriesToEmbed", queriesToEmbed);
+  if (queriesToEmbed.length === 0) {
+    return new Response("No user message to answer", { status: 400 });
+  }
 
   const { embeddings } = await embedMany({
     model: mistral.embeddingModel("mistral-embed"),
@@ -239,8 +241,6 @@ export const POST = async (req: Request) => {
     .toSorted((a, b) => b.similarity - a.similarity)
     .slice(0, MAX_RETRIEVED_CONTEXTS);
   const retrievedContextText = formatRetrievedContexts(retrievedContexts);
-
-  // console.log("retrievedContextText", retrievedContextText);
 
   const result = streamText({
     messages: await convertToModelMessages(messages),

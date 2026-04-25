@@ -81,6 +81,30 @@ const rowToUiMessage = (row: typeof chatMessage.$inferSelect): UIMessage => ({
   role: row.role as UIMessage["role"],
 });
 
+const listOwnedConversationMessages = async ({
+  ctx,
+  conversationId,
+  projectId,
+}: {
+  ctx: ProtectedChatContext;
+  conversationId: string;
+  projectId: string;
+}): Promise<UIMessage[]> => {
+  const rows = await ctx.db
+    .select()
+    .from(chatMessage)
+    .where(
+      and(
+        eq(chatMessage.conversationId, conversationId),
+        eq(chatMessage.projectId, projectId),
+        eq(chatMessage.ownerUserId, ctx.session.user.id)
+      )
+    )
+    .orderBy(asc(chatMessage.sequence));
+
+  return rows.map(rowToUiMessage);
+};
+
 export const chatRouter = createTRPCRouter({
   createConversation: protectedProcedure
     .input(
@@ -211,19 +235,44 @@ export const chatRouter = createTRPCRouter({
         });
       }
 
-      const rows = await ctx.db
-        .select()
-        .from(chatMessage)
-        .where(
-          and(
-            eq(chatMessage.conversationId, input.conversationId),
-            eq(chatMessage.projectId, input.projectId),
-            eq(chatMessage.ownerUserId, ctx.session.user.id)
-          )
-        )
-        .orderBy(asc(chatMessage.sequence));
+      return listOwnedConversationMessages({
+        conversationId: input.conversationId,
+        ctx,
+        projectId: input.projectId,
+      });
+    }),
 
-      return rows.map(rowToUiMessage);
+  getConversationThread: protectedProcedure
+    .input(
+      z.object({
+        conversationId: chatIdSchema,
+        projectId: projectIdSchema,
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await assertOwnedProject({ ctx, projectId: input.projectId });
+
+      const conversation = await getOwnedConversation({
+        conversationId: input.conversationId,
+        ctx,
+        projectId: input.projectId,
+      });
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Conversation not found",
+        });
+      }
+
+      return {
+        conversation,
+        messages: await listOwnedConversationMessages({
+          conversationId: input.conversationId,
+          ctx,
+          projectId: input.projectId,
+        }),
+      };
     }),
 
   listProjectConversations: protectedProcedure

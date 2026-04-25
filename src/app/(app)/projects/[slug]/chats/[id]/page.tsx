@@ -14,23 +14,28 @@ export default async function ChatPage({
   params: Promise<{ id: string; slug: string }>;
   searchParams: Promise<{ stream?: string }>;
 }) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const [session, { id: chatId, slug: projectSlug }, { stream: streamParam }] =
+    await Promise.all([
+      headers().then((requestHeaders) =>
+        auth.api.getSession({ headers: requestHeaders })
+      ),
+      params,
+      searchParams,
+    ]);
 
   if (!session?.user) {
     redirect("/login");
   }
 
-  const { id: chatId, slug: projectSlug } = await params;
-  const { stream: streamParam } = await searchParams;
   const project = await caller.project.getProjectBySlug({ slug: projectSlug });
 
   if (!project) {
     notFound();
   }
 
-  const conversation = await (async () => {
+  const { conversation, messages: initialMessages } = await (async () => {
     try {
-      return await caller.chat.getConversationById({
+      return await caller.chat.getConversationThread({
         conversationId: chatId,
         projectId: project.id,
       });
@@ -42,11 +47,6 @@ export default async function ChatPage({
       throw error;
     }
   })();
-
-  const initialMessages = await caller.chat.getConversationMessages({
-    conversationId: chatId,
-    projectId: project.id,
-  });
 
   const shouldAutoStartStream =
     streamParam === "1" &&

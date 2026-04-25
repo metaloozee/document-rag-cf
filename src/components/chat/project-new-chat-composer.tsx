@@ -76,13 +76,14 @@ export const ProjectNewChatComposer = ({
         error instanceof Error ? error.message : "Failed to start chat";
       toast.error(message);
     },
-    onSuccess: async (data) => {
-      await queryClient.invalidateQueries({
+    onSuccess: (data) => {
+      const chatHref = `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(data.chatId)}?stream=1`;
+
+      router.push(chatHref, { scroll: false });
+
+      void queryClient.invalidateQueries({
         queryKey: listProjectConversationsQueryOptions.queryKey,
       });
-      router.push(
-        `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(data.chatId)}?stream=1`
-      );
     },
   });
 

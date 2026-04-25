@@ -42,12 +42,6 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "../ai-elements/reasoning";
-// import {
-//   Source,
-//   Sources,
-//   SourcesContent,
-//   SourcesTrigger,
-// } from "../ai-elements/sources";
 import { Kbd, KbdGroup } from "../ui/kbd";
 
 const getMessagePlainText = (message: UIMessage): string =>
@@ -55,6 +49,8 @@ const getMessagePlainText = (message: UIMessage): string =>
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("\n");
+
+const TITLE_REFRESH_SETTLE_DELAY_MS = 2500;
 
 interface ChatMessageRowProps {
   message: UIMessage;
@@ -131,6 +127,8 @@ export const Chat = ({
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const trpc = useTRPC();
+  const shouldRefreshTitleRef = useRef(autoStartStream);
+  const titleRefreshTimeoutRef = useRef<number | null>(null);
 
   const listProjectConversationsQueryOptions = useMemo(
     () =>
@@ -160,6 +158,13 @@ export const Chat = ({
 
       if (pathname.includes("/chats/")) {
         router.refresh();
+
+        if (shouldRefreshTitleRef.current) {
+          shouldRefreshTitleRef.current = false;
+          titleRefreshTimeoutRef.current = window.setTimeout(() => {
+            router.refresh();
+          }, TITLE_REFRESH_SETTLE_DELAY_MS);
+        }
       }
     },
     [listProjectConversationsQueryOptions, pathname, queryClient, router]
@@ -198,12 +203,22 @@ export const Chat = ({
     }
 
     didAutoStartStream.current = true;
+    shouldRefreshTitleRef.current = true;
     void sendMessage();
     router.replace(
       `/projects/${encodeURIComponent(projectSlug)}/chats/${encodeURIComponent(id)}`,
       { scroll: false }
     );
   }, [autoStartStream, id, initialMessages, projectSlug, router, sendMessage]);
+
+  useEffect(
+    () => () => {
+      if (titleRefreshTimeoutRef.current !== null) {
+        window.clearTimeout(titleRefreshTimeoutRef.current);
+      }
+    },
+    []
+  );
 
   const handleSubmit = (message: { text: string }) => {
     sendMessage(message);
