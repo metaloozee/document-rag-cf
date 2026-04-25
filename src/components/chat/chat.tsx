@@ -37,6 +37,17 @@ import { Spinner } from "@/components/ui/spinner";
 import { useTRPC } from "@/lib/trpc/client";
 import { cn } from "@/lib/utils";
 
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "../ai-elements/reasoning";
+// import {
+//   Source,
+//   Sources,
+//   SourcesContent,
+//   SourcesTrigger,
+// } from "../ai-elements/sources";
 import { Kbd, KbdGroup } from "../ui/kbd";
 
 const getMessagePlainText = (message: UIMessage): string =>
@@ -60,9 +71,22 @@ const ChatMessageRow = ({ message }: ChatMessageRowProps) => {
     }
   }, [message]);
 
+  const reasoningParts = message.parts.filter((p) => p.type === "reasoning");
+  const reasoningText = reasoningParts.map((p) => p.text).join("\n\n");
+  const hasReasoning = reasoningParts.length > 0;
+
+  const lastPart = message.parts.at(-1);
+  const isReasoningStreaming = lastPart?.type === "reasoning";
+
   return (
     <Message className="min-w-0" from={message.role}>
       <MessageContent>
+        {hasReasoning && (
+          <Reasoning className="w-full" isStreaming={isReasoningStreaming}>
+            <ReasoningTrigger />
+            <ReasoningContent>{reasoningText}</ReasoningContent>
+          </Reasoning>
+        )}
         {message.parts.map((part, i) =>
           part.type === "text" ? (
             <MessageResponse key={`${message.id}-text-${i}`}>

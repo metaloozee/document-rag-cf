@@ -257,6 +257,8 @@ export const POST = async (req: Request) => {
       `,
   });
 
+  // console.log("queriesToEmbed", queriesToEmbed);
+
   const { embeddings } = await embedMany({
     model: mistral.embeddingModel("mistral-embed"),
     values: queriesToEmbed,
@@ -303,9 +305,11 @@ export const POST = async (req: Request) => {
     .slice(0, MAX_RETRIEVED_CONTEXTS);
   const retrievedContextText = formatRetrievedContexts(retrievedContexts);
 
+  // console.log("retrievedContextText", retrievedContextText);
+
   const result = streamText({
     messages: await convertToModelMessages(messages),
-    model: mistral("mistral-large-latest"),
+    model: mistral("magistral-medium-latest"),
     system: `
       You are a helpful assistant named OpenBookLM that can answer questions and help with tasks.
       Use the retrieved document context below to answer the user's question. If the context does not contain the answer, say that the uploaded documents do not contain enough information and then provide any generally useful guidance separately.
@@ -325,27 +329,6 @@ export const POST = async (req: Request) => {
       For example:
       $$
       E = mc^2
-      $$
-
-      ## Common Mathematical Expressions:
-      ### Fractions:
-      $$\\frac{numerator}{denominator}$$
-
-      ### Square Roots:
-      $$\\sqrt{x}$$ or $$\\sqrt[n]{x}$$
-
-      ### Exponents and Subscripts:
-      $$x^2$$ or $$x_i$$ or $$x_i^2$$
-
-      ## Advanced Examples:
-      ### The Quadratic Formula:
-      $$
-      x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
-      $$
-
-      ### Normal Distribution:
-      $$
-      f(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}} e^{-\\frac{1}{2}\\left(\\frac{x-\\mu}{\\sigma}\\right)^2}
       $$
       `,
   });
@@ -370,5 +353,7 @@ export const POST = async (req: Request) => {
       }
     },
     originalMessages: messages,
+    sendReasoning: true,
+    sendSources: true,
   });
 };
