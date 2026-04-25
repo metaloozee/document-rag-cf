@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Syne } from "next/font/google";
 
+import "katex/dist/katex.min.css";
 import Providers from "@/components/providers";
 
 import "./globals.css";
