@@ -352,7 +352,6 @@ export const POST = async (req: Request) => {
           projectId: conversation.projectId,
         });
       } catch {
-        // Response already streamed; log for observability.
         console.error("Failed to persist chat messages after stream finished");
       }
     },
