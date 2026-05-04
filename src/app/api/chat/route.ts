@@ -305,7 +305,7 @@ export const POST = async (req: Request) => {
     .slice(0, MAX_RETRIEVED_CONTEXTS);
   const retrievedContextText = formatRetrievedContexts(retrievedContexts);
 
-  // console.log("retrievedContextText", retrievedContextText);
+  console.log("retrievedContextText", retrievedContextText);
 
   const result = streamText({
     messages: await convertToModelMessages(messages),
@@ -315,9 +315,11 @@ export const POST = async (req: Request) => {
       Use the retrieved document context below to answer the user's question. If the context does not contain the answer, say that the uploaded documents do not contain enough information and then provide any generally useful guidance separately.
 
       ## Retrieved document context
-      ${retrievedContextText}
+      <context>
+        ${retrievedContextText}
+      </context>
 
-      For mathematical expressions, OpenBookLM uses double dollar signs ($$) to delimit mathematical expressions. Unlike traditional LaTeX, single dollar signs ($) are not used by default to avoid conflicts with currency symbols in regular text.
+      For mathematical expressions, you MUST strictly use double dollar signs ($$) to delimit mathematical expressions. Unlike traditional LaTeX, single dollar signs ($) are not used by default to avoid conflicts with currency symbols in regular text.
 
       ## Inline Math:
       Wrap inline mathematical expressions with \`$$\`.
@@ -330,6 +332,8 @@ export const POST = async (req: Request) => {
       $$
       E = mc^2
       $$
+
+      For your final response that contains mathematical expressions, forget the formatting there is inside the retrieved context, format them again with respect to the formatting rules stated above. This is a strict rule, you'll be penalized if you fail to follow it.
       `,
   });
 

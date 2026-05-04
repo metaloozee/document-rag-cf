@@ -16,6 +16,7 @@ export const env = createEnv({
     DATABASE_URL: z.string().url(),
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
+    GROQ_API_KEY: z.string().min(1),
     MISTRAL_API_KEY: z.string().min(1),
     NODE_ENV: z
       .enum(["development", "production", "preview"])

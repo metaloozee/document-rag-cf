@@ -42,12 +42,6 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "../ai-elements/reasoning";
-// import {
-//   Source,
-//   Sources,
-//   SourcesContent,
-//   SourcesTrigger,
-// } from "../ai-elements/sources";
 import { Kbd, KbdGroup } from "../ui/kbd";
 
 const getMessagePlainText = (message: UIMessage): string =>
